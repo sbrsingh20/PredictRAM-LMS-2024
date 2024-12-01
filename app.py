@@ -177,23 +177,20 @@ def main():
         # Adding the 'key' argument to ensure uniqueness
         economic_event = st.selectbox("Select an Economic Event", economic_event_columns, key=f"economic_event_{stock_symbol}")
 
-        event_value = st.number_input(f"Enter the value for the economic event '{economic_event}'", value=0.0)
+        # Fix the event_value input to have a unique key for each stock symbol
+        event_value = st.number_input(f"Enter the value for the economic event '{economic_event}'", value=0.0, key=f"economic_event_{stock_symbol}")
 
         stock_data_returns = merged_data['Close'].pct_change().dropna()
 
         # Train-Test Split
         features = merged_data[['Open', 'High', 'Low', 'Volume']]
-        target = merged_data['Close']
+        target = merged_data['Close'].pct_change().dropna()
+
         X_train, X_test, y_train, y_test = train_test_split(features, target, test_size=0.2, random_state=42)
 
-        # Store results and model parameters
+        # Train different models
         model_results = []
-
-        # List of models to evaluate
-        model_types = ["RandomForest", "XGBoost", "LightGBM", "LinearRegression"]
-
-        for model_type in model_types:
-            st.write(f"\nTraining model: {model_type}")
+        for model_type in ["RandomForest", "XGBoost", "LightGBM", "LinearRegression"]:
             model = train_model(X_train, y_train, model_type)
             predictions, mse, r2 = predict_and_evaluate(model, X_test, y_test)
             model_results.append({
