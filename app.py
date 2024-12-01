@@ -34,9 +34,6 @@ def preprocess_data(stock_data, economics_data):
     stock_data = stock_data.dropna(subset=['Date'])
     economics_data = economics_data.dropna(subset=['Date'])
 
-    # Remove duplicates in the economic event data based on Date
-    economics_data = economics_data.drop_duplicates(subset=['Date'])
-
     # Merge data based on 'Date'
     merged_data = pd.merge(stock_data, economics_data, on='Date', how='inner')
     return merged_data
@@ -49,7 +46,7 @@ def calculate_correlation(stock_data, economic_event_data, event_column):
     # Ensure the economic event data is aligned with the stock data
     economic_event_data = economic_event_data[['Date', event_column]]  # Selecting the column for the event
     economic_event_data['Date'] = pd.to_datetime(economic_event_data['Date'])
-
+    
     # Merge the economic event data with stock data on 'Date'
     merged_event_data = pd.merge(stock_data[['Date', 'Returns']], economic_event_data, on='Date', how='inner')
 
@@ -60,7 +57,7 @@ def calculate_correlation(stock_data, economic_event_data, event_column):
 def calculate_financial_metrics(stock_returns, benchmark_returns):
     stock_returns = stock_returns.dropna()
     benchmark_returns = benchmark_returns.dropna()
-
+    
     # Ensure the economic event data is aligned with the stock data
     aligned_returns = pd.concat([stock_returns, benchmark_returns], axis=1).dropna()
     stock_returns = aligned_returns.iloc[:, 0]
@@ -177,20 +174,23 @@ def main():
         # Adding the 'key' argument to ensure uniqueness
         economic_event = st.selectbox("Select an Economic Event", economic_event_columns, key=f"economic_event_{stock_symbol}")
 
-        # Fix the event_value input to have a unique key for each stock symbol
-        event_value = st.number_input(f"Enter the value for the economic event '{economic_event}'", value=0.0, key=f"economic_event_{stock_symbol}_{economic_event}")
+        event_value = st.number_input(f"Enter the value for the economic event '{economic_event}'", value=0.0)
 
         stock_data_returns = merged_data['Close'].pct_change().dropna()
 
-        # Train models
+        # Train-Test Split
         features = merged_data[['Open', 'High', 'Low', 'Volume']]
-        target = merged_data['Close'].pct_change().dropna()
-
+        target = merged_data['Close']
         X_train, X_test, y_train, y_test = train_test_split(features, target, test_size=0.2, random_state=42)
 
-        # Train different models
+        # Store results and model parameters
         model_results = []
-        for model_type in ["RandomForest", "XGBoost", "LightGBM", "LinearRegression"]:
+
+        # List of models to evaluate
+        model_types = ["RandomForest", "XGBoost", "LightGBM", "LinearRegression"]
+
+        for model_type in model_types:
+            st.write(f"\nTraining model: {model_type}")
             model = train_model(X_train, y_train, model_type)
             predictions, mse, r2 = predict_and_evaluate(model, X_test, y_test)
             model_results.append({
