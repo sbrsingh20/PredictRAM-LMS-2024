@@ -12,7 +12,7 @@ from sklearn.linear_model import LinearRegression
 # Load Data
 def load_data(stock_file, economics_file):
     stock_data = pd.read_excel(stock_file)
-    stock_data['Symbol'] = os.path.basename(stock_file.name).split('_')[0]  # Extract symbol from filename
+    stock_data['Symbol'] = os.path.basename(stock_file).split('_')[0]  # Extract symbol from filename
     economics_data = pd.read_excel(economics_file)
     
     return stock_data, economics_data
@@ -120,23 +120,50 @@ def predict_and_evaluate(model, X_test, y_test):
 def main():
     st.title("Stock and Economic Data Analysis")
 
-    # Upload files
-    stock_file = st.file_uploader("Upload Stock Data File", type="xlsx")
-    economics_file = st.file_uploader("Upload Economic Data File", type="xlsx")
-    benchmark_file = st.file_uploader("Upload Benchmark File (e.g., ^NSEI.xlsx)", type="xlsx")
+    # Set file paths for stock, economics, and benchmark files
+    stock_folder = "stockdata"  # Folder containing your stock files
+    economics_file = "IIP_data - Copy.xlsx"  # Your economic data file
+    benchmark_file = "^NSEI.xlsx"  # Your benchmark index file
     
-    if stock_file is not None and economics_file is not None and benchmark_file is not None:
-        # Load data
-        benchmark_data, _ = load_data(benchmark_file, economics_file)
-        benchmark_data = benchmark_data[['Date', 'Close']].dropna()
-        benchmark_data['Returns'] = benchmark_data['Close'].pct_change().dropna()
+    # Load benchmark data
+    benchmark_data, _ = load_data(benchmark_file, economics_file)
+    benchmark_data = benchmark_data[['Date', 'Close']].dropna()
+    benchmark_data['Returns'] = benchmark_data['Close'].pct_change().dropna()
 
-        # Load stock data
-        stock_data, economics_data = load_data(stock_file, economics_file)
+    # Get stock symbols from the stockdata folder
+    stock_files = [f for f in os.listdir(stock_folder) if f.endswith('.xlsx')]
+    stock_symbols = [os.path.basename(f).split('_')[0] for f in stock_files]
+    
+    # Let user choose multiple stock symbols
+    st.write("Available stock symbols:", stock_symbols)
+    selected_symbols = st.multiselect("Select stock symbols to analyze", stock_symbols)
+
+    if len(selected_symbols) == 0:
+        st.error("No stock symbols selected. Please choose at least one symbol.")
+        return
+
+    st.write(f"Selected stock symbols for analysis: {selected_symbols}")
+
+    results = []  # List to store results for each stock
+
+    for stock_symbol in selected_symbols:
+        # Find the stock file for the selected symbol
+        selected_stock_file = None
+        for stock_file in stock_files:
+            if stock_symbol in stock_file:
+                selected_stock_file = os.path.join(stock_folder, stock_file)
+                break
+        
+        if selected_stock_file is None:
+            st.error(f"Error: Stock file for '{stock_symbol}' not found.")
+            continue
+
+        st.write(f"\nProcessing {selected_stock_file}...")
+        stock_data, economics_data = load_data(selected_stock_file, economics_file)
         merged_data = preprocess_data(stock_data, economics_data)
 
         economic_event_columns = list(economics_data.columns)
-        economic_event = st.selectbox("Select Economic Event", economic_event_columns)
+        economic_event = st.selectbox("Select an Economic Event", economic_event_columns)
 
         event_value = st.number_input(f"Enter the value for the economic event '{economic_event}'", value=0.0)
 
@@ -147,9 +174,11 @@ def main():
         target = merged_data['Close']
         X_train, X_test, y_train, y_test = train_test_split(features, target, test_size=0.2, random_state=42)
 
+        # Store results and model parameters
+        model_results = []
+
         # List of models to evaluate
         model_types = ["RandomForest", "XGBoost", "LightGBM", "LinearRegression"]
-        model_results = []
 
         for model_type in model_types:
             st.write(f"\nTraining model: {model_type}")
@@ -183,9 +212,21 @@ def main():
 
         # Financial metrics calculation
         financial_metrics = calculate_financial_metrics(stock_data_returns, benchmark_data['Returns'].dropna())
-        financial_metrics_df = pd.DataFrame([financial_metrics])
-        st.table(financial_metrics_df)
+        financial_metrics["Stock"] = stock_symbol
+        model_results.append(financial_metrics)
 
-# Run the app
+        results.append(model_results)
+
+    # Save results to Excel
+    results_flat = []
+    for result_set in results:
+        for res in result_set:
+            results_flat.append(res)
+
+    results_df = pd.DataFrame(results_flat)
+    results_df.to_excel("financial_metrics_results.xlsx", index=False)
+    st.write("Financial metrics results saved to 'financial_metrics_results.xlsx'.")
+
+# Run the application
 if __name__ == "__main__":
     main()
