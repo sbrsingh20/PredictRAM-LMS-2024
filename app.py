@@ -123,6 +123,15 @@ def predict_and_evaluate(model, X_test, y_test):
     r2 = r2_score(y_test, predictions)
     return predictions, mse, r2
 
+# Predict using model and economic event value
+def predict_close_price(model, event_value, features):
+    # Append the economic event value to the features for prediction
+    # Assuming the event value affects one of the columns, we need to modify the feature set
+    features_with_event = features.copy()
+    features_with_event['Economic Event'] = event_value  # Add the economic event value to the features
+    prediction = model.predict(features_with_event)[-1]  # Predict based on the latest features
+    return prediction
+
 # Main function
 def main():
     st.title("Stock and Economic Data Analysis")
@@ -200,6 +209,10 @@ def main():
                 "Parameters": model.get_params()
             })
             st.write(f"{model_type} - MSE: {mse:.2f}, R-Squared: {r2:.2f}")
+
+            # Predict close price based on the economic event value
+            predicted_close_price = predict_close_price(model, event_value, features)
+            st.write(f"Predicted Close Price for {stock_symbol} based on event value: {predicted_close_price:.2f}")
 
         # Correlation with economic event
         correlation = calculate_correlation(stock_data, economics_data, economic_event)
