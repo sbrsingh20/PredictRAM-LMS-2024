@@ -34,6 +34,9 @@ def preprocess_data(stock_data, economics_data):
     stock_data = stock_data.dropna(subset=['Date'])
     economics_data = economics_data.dropna(subset=['Date'])
 
+    # Remove duplicates in the economic event data based on Date
+    economics_data = economics_data.drop_duplicates(subset=['Date'])
+
     # Merge data based on 'Date'
     merged_data = pd.merge(stock_data, economics_data, on='Date', how='inner')
     return merged_data
@@ -46,7 +49,7 @@ def calculate_correlation(stock_data, economic_event_data, event_column):
     # Ensure the economic event data is aligned with the stock data
     economic_event_data = economic_event_data[['Date', event_column]]  # Selecting the column for the event
     economic_event_data['Date'] = pd.to_datetime(economic_event_data['Date'])
-    
+
     # Merge the economic event data with stock data on 'Date'
     merged_event_data = pd.merge(stock_data[['Date', 'Returns']], economic_event_data, on='Date', how='inner')
 
@@ -57,7 +60,7 @@ def calculate_correlation(stock_data, economic_event_data, event_column):
 def calculate_financial_metrics(stock_returns, benchmark_returns):
     stock_returns = stock_returns.dropna()
     benchmark_returns = benchmark_returns.dropna()
-    
+
     # Ensure the economic event data is aligned with the stock data
     aligned_returns = pd.concat([stock_returns, benchmark_returns], axis=1).dropna()
     stock_returns = aligned_returns.iloc[:, 0]
