@@ -163,7 +163,9 @@ def main():
         merged_data = preprocess_data(stock_data, economics_data)
 
         economic_event_columns = list(economics_data.columns)
-        economic_event = st.selectbox("Select an Economic Event", economic_event_columns)
+        
+        # Adding the 'key' argument to ensure uniqueness
+        economic_event = st.selectbox("Select an Economic Event", economic_event_columns, key=f"economic_event_{stock_symbol}")
 
         event_value = st.number_input(f"Enter the value for the economic event '{economic_event}'", value=0.0)
 
@@ -204,24 +206,34 @@ def main():
             user_df = pd.DataFrame([user_input])
             predicted_close = model.predict(user_df)
 
-            st.write(f"Predicted Closing Price using {model_type}: {predicted_close[0]:.4f}")
+            st.write(f"Predicted Closing Price using {model_type}: {predicted_close[0]:.2f}")
 
-        # Calculate and display correlation
-        correlation = calculate_correlation(merged_data, merged_data[economic_event])
-        st.write(f"Correlation between stock returns and economic event: {correlation:.4f}")
+        # Correlation with economic event
+        correlation = calculate_correlation(stock_data, economics_data[economic_event])
+        st.write(f"Correlation between stock returns and '{economic_event}': {correlation:.2f}")
 
-        # Financial metrics calculation
-        financial_metrics = calculate_financial_metrics(stock_data_returns, benchmark_data['Returns'].dropna())
-        financial_metrics["Stock"] = stock_symbol
-        model_results.append(financial_metrics)
+        # Financial metrics
+        benchmark_returns = benchmark_data['Returns']
+        financial_metrics = calculate_financial_metrics(stock_data_returns, benchmark_returns)
+        st.write("Financial Metrics:", financial_metrics)
 
-        results.append(model_results)
+        results.append({
+            "Stock Symbol": stock_symbol,
+            "Model Results": model_results,
+            "Financial Metrics": financial_metrics
+        })
 
-    # Save results to Excel
+    # Save results to an Excel file
     results_flat = []
-    for result_set in results:
-        for res in result_set:
-            results_flat.append(res)
+    for res in results:
+        for model_result in res["Model Results"]:
+            results_flat.append({
+                "Stock Symbol": res["Stock Symbol"],
+                "Model": model_result["Model"],
+                "Mean Squared Error": model_result["Mean Squared Error"],
+                "R-Squared": model_result["R-Squared"],
+                "Parameters": model_result["Parameters"]
+            })
 
     results_df = pd.DataFrame(results_flat)
     results_df.to_excel("financial_metrics_results.xlsx", index=False)
