@@ -178,11 +178,11 @@ def main():
         economic_event = st.selectbox("Select an Economic Event", economic_event_columns, key=f"economic_event_{stock_symbol}")
 
         # Fix the event_value input to have a unique key for each stock symbol
-        event_value = st.number_input(f"Enter the value for the economic event '{economic_event}'", value=0.0, key=f"economic_event_{stock_symbol}")
+        event_value = st.number_input(f"Enter the value for the economic event '{economic_event}'", value=0.0, key=f"economic_event_{stock_symbol}_{economic_event}")
 
         stock_data_returns = merged_data['Close'].pct_change().dropna()
 
-        # Train-Test Split
+        # Train models
         features = merged_data[['Open', 'High', 'Low', 'Volume']]
         target = merged_data['Close'].pct_change().dropna()
 
