@@ -45,8 +45,11 @@ def calculate_correlation(stock_data, economic_event_data, event_column):
 
     # Ensure the economic event data is aligned with the stock data
     economic_event_data = economic_event_data[['Date', event_column]]  # Selecting the column for the event
-    economic_event_data['Date'] = pd.to_datetime(economic_event_data['Date'])
+    economic_event_data['Date'] = pd.to_datetime(economic_event_data['Date'], errors='coerce')
     
+    # Drop duplicate dates in the economic event data
+    economic_event_data = economic_event_data.drop_duplicates(subset=['Date'])
+
     # Merge the economic event data with stock data on 'Date'
     merged_event_data = pd.merge(stock_data[['Date', 'Returns']], economic_event_data, on='Date', how='inner')
 
