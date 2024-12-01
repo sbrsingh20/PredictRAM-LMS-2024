@@ -250,3 +250,7 @@ def main():
     results_df = pd.DataFrame(results_flat)
     results_df.to_excel("financial_metrics_results.xlsx", index=False)
     st.write("Financial metrics results saved to 'financial_metrics_results.xlsx'.")
+
+# Run the app
+if __name__ == "__main__":
+    main()
