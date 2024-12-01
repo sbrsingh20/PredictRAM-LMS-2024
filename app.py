@@ -123,21 +123,6 @@ def predict_and_evaluate(model, X_test, y_test):
     r2 = r2_score(y_test, predictions)
     return predictions, mse, r2
 
-# Predict close price based on economic event value
-def predict_close_price(model, event_value, features, training_columns):
-    # Prepare the feature set for prediction, ensuring the same columns as during training
-    features_with_event = features.copy()
-    
-    # Add the new 'Economic Event' column, ensuring the correct column position
-    features_with_event['Economic Event'] = event_value
-    
-    # Reorder the columns to match the order used during training
-    features_with_event = features_with_event[training_columns]
-
-    # Predict the close price based on the features
-    prediction = model.predict(features_with_event)[-1]  # Predict based on the most recent row
-    return prediction
-
 # Main function
 def main():
     st.title("Stock and Economic Data Analysis")
@@ -198,9 +183,6 @@ def main():
         target = merged_data['Close']
         X_train, X_test, y_train, y_test = train_test_split(features, target, test_size=0.2, random_state=42)
 
-        # Store the training feature columns to use for prediction
-        training_columns = features.columns.tolist()
-
         # Store results and model parameters
         model_results = []
 
@@ -219,13 +201,37 @@ def main():
             })
             st.write(f"{model_type} - MSE: {mse:.2f}, R-Squared: {r2:.2f}")
 
-            # Predict close price based on the economic event value
-            predicted_close_price = predict_close_price(model, event_value, features, training_columns)
-            st.write(f"Predicted Close Price for {stock_symbol} based on event value: {predicted_close_price:.2f}")
+        # Correlation with economic event
+        correlation = calculate_correlation(stock_data, economics_data, economic_event)
+        st.write(f"Correlation between stock returns and '{economic_event}': {correlation:.2f}")
 
-    # Show final results
-    for result in model_results:
-        st.write(f"\n{result['Model']} - MSE: {result['Mean Squared Error']:.2f}, R-Squared: {result['R-Squared']:.2f}")
+        # Financial metrics
+        benchmark_returns = benchmark_data['Returns']
+        financial_metrics = calculate_financial_metrics(stock_data_returns, benchmark_returns)
+        st.write("Financial Metrics:", financial_metrics)
 
+        results.append({
+            "Stock Symbol": stock_symbol,
+            "Model Results": model_results,
+            "Financial Metrics": financial_metrics
+        })
+
+    # Save results to an Excel file
+    results_flat = []
+    for res in results:
+        for model_result in res["Model Results"]:
+            results_flat.append({
+                "Stock Symbol": res["Stock Symbol"],
+                "Model": model_result["Model"],
+                "Mean Squared Error": model_result["Mean Squared Error"],
+                "R-Squared": model_result["R-Squared"],
+                "Parameters": model_result["Parameters"]
+            })
+
+    results_df = pd.DataFrame(results_flat)
+    results_df.to_excel("financial_metrics_results.xlsx", index=False)
+    st.write("Financial metrics results saved to 'financial_metrics_results.xlsx'.")
+
+# Run the application
 if __name__ == "__main__":
     main()
