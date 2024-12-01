@@ -34,17 +34,23 @@ def preprocess_data(stock_data, economics_data):
     stock_data = stock_data.dropna(subset=['Date'])
     economics_data = economics_data.dropna(subset=['Date'])
 
+    # Merge data based on 'Date'
     merged_data = pd.merge(stock_data, economics_data, on='Date', how='inner')
     return merged_data
 
 # Calculate Correlation
-def calculate_correlation(stock_data, economic_event_data):
+def calculate_correlation(stock_data, economic_event_data, event_column):
     stock_data['Returns'] = stock_data['Close'].pct_change()
     stock_data = stock_data.dropna(subset=['Returns'])
-    
+
     # Ensure the economic event data is aligned with the stock data
-    economic_event_data = economic_event_data.loc[stock_data.index]
-    correlation = stock_data['Returns'].corr(economic_event_data)
+    economic_event_data = economic_event_data[['Date', event_column]]  # Selecting the column for the event
+    economic_event_data['Date'] = pd.to_datetime(economic_event_data['Date'])
+    
+    # Merge the economic event data with stock data on 'Date'
+    merged_event_data = pd.merge(stock_data[['Date', 'Returns']], economic_event_data, on='Date', how='inner')
+
+    correlation = merged_event_data['Returns'].corr(merged_event_data[event_column])
     return correlation
 
 # Financial Metrics Calculation
@@ -52,6 +58,7 @@ def calculate_financial_metrics(stock_returns, benchmark_returns):
     stock_returns = stock_returns.dropna()
     benchmark_returns = benchmark_returns.dropna()
     
+    # Ensure the economic event data is aligned with the stock data
     aligned_returns = pd.concat([stock_returns, benchmark_returns], axis=1).dropna()
     stock_returns = aligned_returns.iloc[:, 0]
     benchmark_returns = aligned_returns.iloc[:, 1]
@@ -186,30 +193,16 @@ def main():
             st.write(f"\nTraining model: {model_type}")
             model = train_model(X_train, y_train, model_type)
             predictions, mse, r2 = predict_and_evaluate(model, X_test, y_test)
-
-            model_info = {
+            model_results.append({
                 "Model": model_type,
                 "Mean Squared Error": mse,
                 "R-Squared": r2,
-                "Parameters": model.get_params() if hasattr(model, 'get_params') else 'N/A'
-            }
-            model_results.append(model_info)
-
-            # Display predicted closing price for the latest day
-            last_row = merged_data.iloc[-1]
-            user_input = {
-                'Open': last_row['Open'],
-                'High': last_row['High'],
-                'Low': last_row['Low'],
-                'Volume': last_row['Volume']
-            }
-            user_df = pd.DataFrame([user_input])
-            predicted_close = model.predict(user_df)
-
-            st.write(f"Predicted Closing Price using {model_type}: {predicted_close[0]:.2f}")
+                "Parameters": model.get_params()
+            })
+            st.write(f"{model_type} - MSE: {mse:.2f}, R-Squared: {r2:.2f}")
 
         # Correlation with economic event
-        correlation = calculate_correlation(stock_data, economics_data[economic_event])
+        correlation = calculate_correlation(stock_data, economics_data, economic_event)
         st.write(f"Correlation between stock returns and '{economic_event}': {correlation:.2f}")
 
         # Financial metrics
