@@ -103,8 +103,11 @@ def calculate_financial_metrics(stock_returns, benchmark_returns):
         "VaR (95%)": var_95
     }
 
-# Train Machine Learning Model
-def train_model(X, y, model_type="RandomForest"):
+# Train Model with the economic event value as a feature
+def train_model_with_event_value(X, y, event_value, model_type="RandomForest"):
+    # Add the event_value as a feature to the input data
+    X['Economic_Event_Value'] = event_value  # Add the entered event value as a new feature
+    
     if model_type == "RandomForest":
         model = RandomForestRegressor(n_estimators=100, random_state=42)
     elif model_type == "XGBoost":
@@ -118,6 +121,12 @@ def train_model(X, y, model_type="RandomForest"):
     
     model.fit(X, y)
     return model
+
+# Function to predict based on the entered economic event value
+def predict_with_event_value(model, X_test, event_value):
+    X_test['Economic_Event_Value'] = event_value  # Add the entered event value to the test data
+    predictions = model.predict(X_test)
+    return predictions
 
 # Function to evaluate the model
 def predict_and_evaluate(model, X_test, y_test):
@@ -194,7 +203,7 @@ def main():
 
         for model_type in model_types:
             st.write(f"\nTraining model: {model_type}")
-            model = train_model(X_train, y_train, model_type)
+            model = train_model_with_event_value(X_train, y_train, event_value, model_type)
             predictions, mse, r2 = predict_and_evaluate(model, X_test, y_test)
             model_results.append({
                 "Model": model_type,
@@ -203,6 +212,13 @@ def main():
                 "Parameters": model.get_params()
             })
             st.write(f"{model_type} - MSE: {mse:.2f}, R-Squared: {r2:.2f}")
+
+        # Predict the stock price based on the economic event value
+        st.write(f"\nPredicting stock price based on economic event value: {event_value}")
+        predictions_with_event_value = predict_with_event_value(model, X_test, event_value)
+
+        # Show the predicted values
+        st.write(f"Predicted stock prices: {predictions_with_event_value[:10]}")  # Show top 10 predictions
 
         # Correlation with economic event
         correlation = calculate_correlation(stock_data, economics_data, economic_event)
@@ -234,7 +250,3 @@ def main():
     results_df = pd.DataFrame(results_flat)
     results_df.to_excel("financial_metrics_results.xlsx", index=False)
     st.write("Financial metrics results saved to 'financial_metrics_results.xlsx'.")
-
-# Run the application
-if __name__ == "__main__":
-    main()
